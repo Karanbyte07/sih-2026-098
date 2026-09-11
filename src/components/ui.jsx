@@ -115,10 +115,11 @@ export function SimpleLineChart({ data = [], color = '#38BDF8', height = 120, sh
       }
     }
 
-    // Area fill
+    // Area fill — safe gradient (supports hex-7 and rgba)
+    const isHex7 = typeof color === 'string' && /^#[0-9A-Fa-f]{6}$/.test(color);
     const grad = ctx.createLinearGradient(0, pad.top, 0, pad.top + ch);
-    grad.addColorStop(0, color + '22');
-    grad.addColorStop(1, color + '00');
+    grad.addColorStop(0, isHex7 ? color + '30' : 'rgba(56,189,248,0.18)');
+    grad.addColorStop(1, isHex7 ? color + '00' : 'rgba(56,189,248,0.0)');
     ctx.beginPath();
     ctx.moveTo(px(0), py(data[0]));
     for (let i = 1; i < data.length; i++) ctx.lineTo(px(i), py(data[i]));

@@ -3,7 +3,9 @@ import { applyDisturbance, generateReferenceTrajectory } from '../simulation/tra
 import { calculateErrorMetrics } from '../simulation/errorMetrics';
 import { estimateState } from '../simulation/stateEstimator';
 import { SCENARIOS } from '../simulation/scenarios';
+import { useSensorData } from '../hooks/useSensorData.js';
 import './MissionControl.css';
+
 
 const INITIAL_PROGRESS = 0.56;
 
@@ -38,6 +40,12 @@ export default function MissionControl() {
   const errors = useMemo(() => calculateErrorMetrics(reference, simulated, progress), [reference, simulated, progress]);
   const isFault = scenario === 'systemFault';
 
+  // Sensor data layer — reads from the shared DataSourceManager (same source as Live Sensor Data page)
+  const { sourceName, status: sensorStatus } = useSensorData();
+  const sensorLayerLabel = sourceName === 'esp32'
+    ? (sensorStatus === 'disconnected' ? 'ESP32 · Not Connected' : 'ESP32 · Connected')
+    : (sensorStatus === 'running' ? 'Simulation · Active' : 'Simulation · Ready');
+
   useEffect(() => {
     if (runState !== 'Running') return undefined;
     const timer = window.setInterval(() => setProgress((current) => { if (current >= 1) { setRunState('Complete'); return 1; } return Math.min(1, current + 0.012); }), 80);
@@ -50,7 +58,7 @@ export default function MissionControl() {
   return <div className="mission-page"><div className="page-heading"><div><h1>Mission Control</h1><p>Digital Twin &amp; Simulation Overview</p></div><span className="demo-label">DEMO / SIMULATION VALUES</span></div>
     <div className="dashboard-grid">
       <section className="panel twin-panel"><div className="panel-heading"><div><h2>Digital Twin</h2><p>Simulation Environment</p></div><div className="view-toggle"><button className="active">2D</button><button disabled>3D</button></div></div><TrajectoryView reference={reference} simulated={simulated} progress={progress} /></section>
-      <section className="panel status-panel"><div className="panel-heading"><h2>System Status</h2><span className={`health-pill ${isFault ? 'warning' : ''}`}><span className="status-dot" />{isFault ? 'Warning' : 'Healthy'}</span></div><div className="status-list"><StatusRow label="Simulation" value={runState} /><StatusRow label="Sensor Model" value="Connected" /><StatusRow label="State Estimator" value={isFault ? 'Uncertain' : 'Ready'} warning={isFault} /><StatusRow label="Current Scenario" value={SCENARIOS.find((item) => item.id === scenario).label} /></div></section>
+      <section className="panel status-panel"><div className="panel-heading"><h2>System Status</h2><span className={`health-pill ${isFault ? 'warning' : ''}`}><span className="status-dot" />{isFault ? 'Warning' : 'Healthy'}</span></div><div className="status-list"><StatusRow label="Simulation" value={runState} /><StatusRow label="Sensor Layer" value={sensorLayerLabel} /><StatusRow label="State Estimator" value={isFault ? 'Uncertain' : 'Ready'} warning={isFault} /><StatusRow label="Current Scenario" value={SCENARIOS.find((item) => item.id === scenario).label} /></div></section>
       <section className="panel state-panel"><div className="panel-heading"><h2>Estimated State</h2><span className="panel-caption">Current solution</span></div><div className="state-groups"><div><h3>Position</h3><div className="state-values"><span><b>X</b>{state.position.x.toFixed(1)} m</span><span><b>Y</b>{state.position.y.toFixed(1)} m</span><span><b>Z</b>{state.position.z.toFixed(1)} m</span></div></div><div><h3>Velocity</h3><div className="single-value">{state.velocity.toFixed(1)} <small>m/s</small></div></div><div><h3>Orientation</h3><div className="state-values"><span><b>Roll</b>{state.orientation.roll.toFixed(1)}°</span><span><b>Pitch</b>{state.orientation.pitch.toFixed(1)}°</span><span><b>Yaw</b>{state.orientation.yaw.toFixed(1)}°</span></div></div></div></section>
       <section className="panel metrics-panel"><div className="panel-heading"><h2>Error Metrics</h2><span className="panel-caption">Live calculation</span></div><div className="metrics-list"><Metric label="Tracking Error" value={errors.tracking.toFixed(1)} unit="m" /><Metric label="Estimation Error" value={errors.estimation.toFixed(1)} unit="m" /><Metric label="RMSE" value={errors.rmse.toFixed(1)} unit="m" /><Metric label="Model Confidence" value={state.uncertainty.toFixed(1)} unit="%" /></div></section>
     </div>

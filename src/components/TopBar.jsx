@@ -1,6 +1,20 @@
 import React from 'react';
 
-export default function TopBar() {
+const PAGE_LABELS = {
+  mission:      'Mission Control',
+  flight:       'Flight Dynamics',
+  guidance:     'Guidance & Control',
+  fuze:         'Electronic Fuze',
+  sensor:       'Live Sensor Data',
+  estimation:   'State Estimation',
+  analytics:    'Analytics',
+  architecture: 'System Architecture',
+  settings:     'Settings',
+};
+
+export default function TopBar({ activePage }) {
+  const label = PAGE_LABELS[activePage] ?? activePage;
+
   return (
     <header style={{
       height: 48,
@@ -11,9 +25,11 @@ export default function TopBar() {
       flexShrink: 0,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingLeft: 22 }}>
-        <span style={{ fontSize: 12, letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-primary)' }}>KINETICA</span>
+        <span style={{ fontSize: 12, letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-primary)' }}>
+          KINETICA
+        </span>
         <span style={{ height: 16, width: 1, background: 'var(--border-strong)' }} />
-        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Mission Control</span>
+        <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
       </div>
 
       {/* Right side */}

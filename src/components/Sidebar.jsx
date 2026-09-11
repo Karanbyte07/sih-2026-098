@@ -5,7 +5,9 @@ const navItems = [
     id: 'mission', label: 'Mission Control',
     icon: (active) => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" /><line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" /><line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
+        <circle cx="12" cy="12" r="10" /><circle cx="12" cy="12" r="3" />
+        <line x1="12" y1="2" x2="12" y2="4" /><line x1="12" y1="20" x2="12" y2="22" />
+        <line x1="2" y1="12" x2="4" y2="12" /><line x1="20" y1="12" x2="22" y2="12" />
       </svg>
     )
   },
@@ -34,6 +36,24 @@ const navItems = [
     )
   },
   {
+    id: 'sensor', label: 'Live Sensor Data',
+    icon: (active) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
+      </svg>
+    )
+  },
+  {
+    id: 'estimation', label: 'State Estimation',
+    icon: (active) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 3l7.07 16.97 2.51-7.39 7.39-2.51L3 3z" />
+        <path d="M13 13l6 6" />
+      </svg>
+    ),
+    badge: 'NEW',
+  },
+  {
     id: 'analytics', label: 'Analytics',
     icon: (active) => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -45,7 +65,8 @@ const navItems = [
     id: 'architecture', label: 'System Architecture',
     icon: (active) => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
       </svg>
     )
   },
@@ -53,7 +74,8 @@ const navItems = [
     id: 'settings', label: 'Settings',
     icon: (active) => (
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={active ? '#38BDF8' : 'currentColor'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+        <circle cx="12" cy="12" r="3" />
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
       </svg>
     )
   },
@@ -62,26 +84,19 @@ const navItems = [
 export default function Sidebar({ activePage, setActivePage }) {
   return (
     <aside style={{
-      width: 220,
-      minWidth: 220,
-      height: '100vh',
-      background: 'var(--panel)',
-      borderRight: '1px solid var(--border)',
-      display: 'flex',
-      flexDirection: 'column',
+      width: 220, minWidth: 220, height: '100vh',
+      background: 'var(--panel)', borderRight: '1px solid var(--border)',
+      display: 'flex', flexDirection: 'column',
     }}>
       {/* Logo */}
       <div style={{ padding: '24px 20px 20px', borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <div style={{
-            width: 32, height: 32,
-            background: 'var(--accent)',
-            borderRadius: 8,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            width: 32, height: 32, background: 'var(--accent)',
+            borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B1829" strokeWidth="2.5" strokeLinecap="round">
-              <circle cx="12" cy="12" r="2" />
-              <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+              <circle cx="12" cy="12" r="2" /><path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
             </svg>
           </div>
           <div>
@@ -108,6 +123,15 @@ export default function Sidebar({ activePage, setActivePage }) {
             >
               {item.icon(active)}
               <span>{item.label}</span>
+              {/* NEW badge */}
+              {item.badge && (
+                <span style={{
+                  marginLeft: 'auto', fontSize: 9, fontWeight: 700, letterSpacing: '0.06em',
+                  padding: '2px 6px', borderRadius: 100,
+                  background: 'rgba(56,189,248,0.15)', color: 'var(--accent)',
+                  border: '1px solid rgba(56,189,248,0.25)',
+                }}>{item.badge}</span>
+              )}
             </button>
           );
         })}
