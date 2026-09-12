@@ -26,7 +26,7 @@ export default function TopBar({ activePage }) {
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 18, paddingLeft: 22 }}>
         <span style={{ fontSize: 12, letterSpacing: '0.08em', fontWeight: 700, color: 'var(--text-primary)' }}>
-          KINETICA
+          BALLISTIC<span style={{ color: 'var(--accent)' }}>X</span>
         </span>
         <span style={{ height: 16, width: 1, background: 'var(--border-strong)' }} />
         <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>

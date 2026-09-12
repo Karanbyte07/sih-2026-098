@@ -100,7 +100,7 @@ export default function Sidebar({ activePage, setActivePage }) {
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>KINETICA</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.05em' }}>BALLISTIC<span style={{ color: 'var(--accent)' }}>X</span></div>
           </div>
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>
