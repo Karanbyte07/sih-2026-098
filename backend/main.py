@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from typing import Any
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
 
 from ai.anomaly_detector import SensorAnomalyDetector
 from config import settings
@@ -117,13 +118,61 @@ async def lifespan(_: FastAPI):
             settings.serial_reconnect_seconds,
         )
         serial_reader.start()
+
+    # Background auto-tick: stream synthetic demo data at ~5 Hz when no hardware
+    async def _auto_demo_tick():
+        import math, random
+        while True:
+            await asyncio.sleep(0.2)
+            # Only tick when no real hardware is streaming
+            if serial_reader and serial_reader.connected:
+                continue
+            if not manager.connections:
+                continue
+            t = time.time()
+            packet = {
+                "timestamp": t,
+                "sensors": {
+                    "imu": {
+                        "ax": round(random.gauss(0.0, 0.05), 4),
+                        "ay": round(random.gauss(0.0, 0.05), 4),
+                        "az": round(9.81 + random.gauss(0, 0.02), 4),
+                        "gx": round(random.gauss(0.0, 0.1), 4),
+                        "gy": round(random.gauss(0.0, 0.1), 4),
+                        "gz": round(random.gauss(0.0, 0.1), 4),
+                    },
+                    "bmp280": {
+                        "pressure":    round(1013.25 + math.sin(t * 0.1) * 2, 2),
+                        "temperature": round(28.0   + math.sin(t * 0.05) * 1.5, 2),
+                    },
+                    "lm35": {"temperature": round(30.0 + random.gauss(0, 0.3), 2)},
+                    "gps": {
+                        "fix":        True,
+                        "latitude":   round(28.6139 + math.sin(t * 0.01) * 0.001, 6),
+                        "longitude":  round(77.2090 + math.cos(t * 0.01) * 0.001, 6),
+                        "satellites": 8,
+                    },
+                },
+            }
+            await process_packet(packet, "DEMO")
+
+    tick_task = asyncio.create_task(_auto_demo_tick())
     yield
+    tick_task.cancel()
     if serial_reader:
         serial_reader.stop()
     processing_loop = None
 
 
 app = FastAPI(title="ESP32 Sensor Demonstrator Backend", version="1.0.0", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/api/status")
@@ -153,6 +202,40 @@ async def reset_demo() -> dict[str, Any]:
     return {"demo": result}
 
 
+@app.post("/api/demo/tick")
+async def demo_tick() -> dict[str, Any]:
+    """Inject one synthetic sensor packet through the full backend pipeline."""
+    import math, random
+    t = time.time()
+    packet = {
+        "timestamp": t,
+        "sensors": {
+            "imu": {
+                "ax": round(random.gauss(0.0, 0.05), 4),
+                "ay": round(random.gauss(0.0, 0.05), 4),
+                "az": round(9.81 + random.gauss(0, 0.02), 4),
+                "gx": round(random.gauss(0.0, 0.1), 4),
+                "gy": round(random.gauss(0.0, 0.1), 4),
+                "gz": round(random.gauss(0.0, 0.1), 4),
+            },
+            "bmp280": {
+                "pressure":    round(1013.25 + math.sin(t * 0.1) * 2, 2),
+                "temperature": round(28.0   + math.sin(t * 0.05) * 1.5, 2),
+            },
+            "lm35": {
+                "temperature": round(30.0 + random.gauss(0, 0.3), 2),
+            },
+            "gps": {
+                "fix":        True,
+                "latitude":   round(28.6139 + math.sin(t * 0.01) * 0.001, 6),
+                "longitude":  round(77.2090 + math.cos(t * 0.01) * 0.001, 6),
+                "satellites": 8,
+            },
+        },
+    }
+    return await process_packet(packet, "DEMO")
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket) -> None:
     await manager.connect(websocket)
@@ -165,3 +248,4 @@ async def websocket_endpoint(websocket: WebSocket) -> None:
         await manager.disconnect(websocket)
     except Exception:
         await manager.disconnect(websocket)
+

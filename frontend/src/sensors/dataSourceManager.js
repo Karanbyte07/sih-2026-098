@@ -77,8 +77,13 @@ class DataSourceManager {
     // Switch
     this._activeName = name;
 
-    // Subscribe to new source (but do NOT auto-start; caller must call start())
+    // Subscribe to new source
     this._activeSource.subscribe(this._boundHandler);
+
+    // Auto-start the ESP32 source so the WebSocket opens immediately on switch
+    if (name === 'esp32') {
+      this._activeSource.start();
+    }
 
     // Notify listeners immediately with the new source's current data
     this._onData(this._activeSource.getLatestData());
@@ -100,6 +105,15 @@ class DataSourceManager {
   /** @returns {import('./types.js').SensorSourceState} */
   getStatus() {
     return this._activeSource.getStatus();
+  }
+
+  /**
+   * Returns the latest full backend payload (estimated_state, analytics, guidance, etc.)
+   * Only populated when source is 'esp32' and backend is connected.
+   * @returns {object | null}
+   */
+  getBackendPayload() {
+    return this._activeSource.getBackendPayload?.() ?? null;
   }
 
   // ── Pub/sub ──────────────────────────────────────────────────────────────────

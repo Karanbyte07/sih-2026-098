@@ -1,108 +1,98 @@
 /**
  * KINETICA — ESP32 Sensor Source
  * ─────────────────────────────────────────────────────────────────────────────
- * Placeholder for future physical ESP32 hardware integration.
+ * Connects to the Python FastAPI backend WebSocket at ws://localhost:8000/ws.
  *
- * Current state: DISCONNECTED — returns unavailable/empty SensorData.
+ * The backend broadcasts a processed packet every time a sensor frame arrives
+ * (either from real ESP32 hardware over serial, or from the demo state machine
+ * when hardware is absent).
  *
- * Implements the same SensorSource interface as SimulationSensorSource:
- *   start()    → (future) open WebSocket / Serial connection, begin receiving
- *   stop()     → (future) pause data collection
- *   reset()    → (future) reset connection state
- *   subscribe(listener)
- *   unsubscribe(listener)
- *   getLatestData() → SensorData  (empty/disconnected until hardware connected)
- *   getStatus()     → SensorSourceState
- *
- * ─────────────────────────────────────────────────────────────────────────────
- * FUTURE INTEGRATION GUIDE
- * ─────────────────────────────────────────────────────────────────────────────
- *
- * Physical hardware:
- *   ESP32 (main controller)
- *   → M8N GPS module
- *   → MPU6050 IMU (accelerometer + gyroscope)
- *   → BMP280 (pressure + temperature)
- *   → LM35 (temperature)
- *   → OLED display  (local status: "SYSTEM READY", "GPS STATUS", etc.)
- *   → 4 push-buttons (sw1=Start, sw2=Stop, sw3=Page, sw4=Test)
- *   → IR receiver (external event trigger)
- *
- * Planned data flow:
- *   ESP32
- *   → Sensor acquisition firmware
- *   → JSON over WebSocket (Wi-Fi) or Serial (USB)
- *   → ESP32SensorSource.start() opens connection
- *   → Raw JSON packet → normalizeSensorData() → SensorData
- *   → subscribers notified
- *   → UI updated
- *
- * Expected raw packet format from ESP32 firmware:
+ * Backend packet shape:
  * {
- *   "ts": 1234567890,          // Unix ms from ESP32 NTP or millis()
- *   "gps": { "lat": 28.61, "lng": 77.20, "alt": 216.0, "fix": true },
- *   "imu": {
- *     "ax": 0.02, "ay": -0.01, "az": 9.80,
- *     "gx": 0.0,  "gy": 0.0,   "gz": 0.0
+ *   connected:       boolean,         // whether ESP32 serial is live
+ *   source:          string,          // "USB_SERIAL" | "MANUAL" | "DEMO"
+ *   timestamp:       number,          // unix seconds from the ESP32
+ *   sensors: {
+ *     imu:    { ax, ay, az, gx, gy, gz },
+ *     bmp280: { pressure, temperature },
+ *     lm35:   { temperature },
+ *     gps:    { fix, latitude, longitude, satellites }
  *   },
- *   "bmp": { "press": 1013.2, "temp": 28.5 },
- *   "lm35": { "temp": 32.1 },
- *   "sw": [false, false, false, false],
- *   "ir": false
+ *   health:          { imu, bmp280, lm35, gps },   // per-sensor boolean
+ *   ai:              { status, ... },
+ *   estimated_state: { quality, orientation, environment, position },
+ *   guidance:        { mode, recommendation, physical_action, reason },
+ *   analytics:       { sensor_health_score, anomaly, model_deviation, deviation_magnitude },
+ *   deviation:       { magnitude, status, values }
  * }
  *
- * IMPORTANT: Do NOT add operational control commands to this source.
- * The ESP32 is a telemetry-only device.
- *
- * Approved OLED states: "SYSTEM READY" | "SENSOR STATUS" | "GPS STATUS" | "DATA STREAM"
+ * This source implements the same interface as SimulationSensorSource so the
+ * DataSourceManager can swap between them transparently.
  */
 
 import { createEmptySensorData } from './types.js';
 import { normalizeSensorData }   from './sensorValidator.js';
 
+const WS_URL               = 'ws://localhost:8000/ws';
+const RECONNECT_BASE_MS    = 1_000;
+const RECONNECT_MAX_MS     = 16_000;
+const RECONNECT_MULTIPLIER = 2;
+
 export class ESP32SensorSource {
   constructor() {
     /** @type {import('./types.js').SensorData} */
     this._latestData = createEmptySensorData('esp32');
-    this._status     = 'disconnected';
-    this._listeners  = new Set();
 
-    // ── Future connection placeholders ────────────────────────────────────
-    this._websocket  = null;   // WebSocket instance (future)
-    this._wsUrl      = null;   // e.g. 'ws://192.168.x.x:81'
+    /** @type {'ready' | 'running' | 'disconnected'} */
+    this._status = 'disconnected';
+
+    /** @type {Set<Function>} */
+    this._listeners = new Set();
+
+    /** @type {WebSocket | null} */
+    this._ws = null;
+
+    /** @type {ReturnType<typeof setTimeout> | null} */
+    this._reconnectTimer = null;
+
+    this._reconnectDelay = RECONNECT_BASE_MS;
+    this._packetsReceived = 0;
+    this._intentionallyStopped = false;
+
+    /**
+     * The full backend payload (estimated_state, analytics, guidance, etc.)
+     * is stored here so useBackendData() can read it without polluting SensorData.
+     * @type {object | null}
+     */
+    this._lastBackendPayload = null;
   }
 
-  // ── Public interface (mirrors SimulationSensorSource) ──────────────────────
+  // ── Public interface ────────────────────────────────────────────────────────
 
-  /**
-   * (Future) Attempt to connect to the ESP32 WebSocket / Serial endpoint.
-   * Currently a no-op — returns immediately in disconnected state.
-   */
   start() {
-    if (this._status === 'running') return;
-
-    // ── FUTURE: open WebSocket ──────────────────────────────────────────────
-    // this._wsUrl     = 'ws://esp32.local:81';
-    // this._websocket = new WebSocket(this._wsUrl);
-    //
-    // this._websocket.onopen    = () => { this._status = 'running'; ... };
-    // this._websocket.onmessage = (event) => this._handlePacket(event.data);
-    // this._websocket.onclose   = () => this._handleDisconnect();
-    // this._websocket.onerror   = (err) => console.error('[ESP32] WS error', err);
-
-    console.info('[ESP32SensorSource] Hardware not connected. Staying in disconnected state.');
-    // Status stays 'disconnected' until real hardware integration.
+    if (this._ws && (this._ws.readyState === WebSocket.OPEN || this._ws.readyState === WebSocket.CONNECTING)) {
+      return;
+    }
+    this._intentionallyStopped = false;
+    this._connect();
   }
 
   stop() {
-    // ── FUTURE: close WebSocket gracefully ─────────────────────────────────
-    // if (this._websocket) { this._websocket.close(); this._websocket = null; }
+    this._intentionallyStopped = true;
+    this._clearReconnect();
+    if (this._ws) {
+      this._ws.onclose = null; // prevent reconnect loop on deliberate close
+      this._ws.close();
+      this._ws = null;
+    }
     this._status = 'disconnected';
-    console.debug('[ESP32SensorSource] Stopped (no-op — not connected).');
+    this._notify();
   }
 
   reset() {
     this.stop();
+    this._packetsReceived = 0;
+    this._lastBackendPayload = null;
     this._latestData = createEmptySensorData('esp32');
     this._notify();
   }
@@ -116,10 +106,19 @@ export class ESP32SensorSource {
   getStatus() {
     return {
       status:          this._status,
-      packetsReceived: 0,   // will be tracked in future
+      packetsReceived: this._packetsReceived,
       lastUpdateMs:    0,
       source:          'esp32',
     };
+  }
+
+  /**
+   * Returns the full backend payload (estimated_state, analytics, guidance, etc.)
+   * Updated on every WebSocket message. Returns null before first message.
+   * @returns {object | null}
+   */
+  getBackendPayload() {
+    return this._lastBackendPayload;
   }
 
   /** @param {function(import('./types.js').SensorData): void} listener */
@@ -132,56 +131,118 @@ export class ESP32SensorSource {
     this._listeners.delete(listener);
   }
 
-  // ── Private helpers ─────────────────────────────────────────────────────────
+  // ── Private — WebSocket lifecycle ───────────────────────────────────────────
 
-  /**
-   * (Future) Handle a raw JSON string received from the ESP32.
-   * @param {string} rawJson
-   */
-  _handlePacket(rawJson) {
+  _connect() {
     try {
-      const raw = JSON.parse(rawJson);
-
-      // Map expected ESP32 packet keys to the SensorData shape
-      const mapped = {
-        timestamp: raw.ts ?? Date.now(),
-        source:    'esp32',
-        gps: {
-          available:  raw.gps?.fix === true,
-          latitude:   raw.gps?.lat  ?? null,
-          longitude:  raw.gps?.lng  ?? null,
-          altitude:   raw.gps?.alt  ?? null,
-        },
-        imu: {
-          acceleration: { x: raw.imu?.ax ?? 0, y: raw.imu?.ay ?? 0, z: raw.imu?.az ?? 0 },
-          gyroscope:    { x: raw.imu?.gx ?? 0, y: raw.imu?.gy ?? 0, z: raw.imu?.gz ?? 0 },
-        },
-        environmental: {
-          pressure:          raw.bmp?.press ?? null,
-          bmp280Temperature: raw.bmp?.temp  ?? null,
-          lm35Temperature:   raw.lm35?.temp ?? null,
-        },
-        switches: {
-          sw1: raw.sw?.[0] === true,
-          sw2: raw.sw?.[1] === true,
-          sw3: raw.sw?.[2] === true,
-          sw4: raw.sw?.[3] === true,
-        },
-        ir: { active: raw.ir === true },
-      };
-
-      this._latestData = normalizeSensorData(mapped, 'running');
-      this._notify();
+      this._ws = new WebSocket(WS_URL);
     } catch (err) {
-      console.error('[ESP32SensorSource] Failed to parse packet:', err);
+      console.error('[ESP32SensorSource] Failed to create WebSocket:', err);
+      this._scheduleReconnect();
+      return;
+    }
+
+    this._ws.onopen = () => {
+      console.info('[ESP32SensorSource] Connected to backend at', WS_URL);
+      this._status = 'running';
+      this._reconnectDelay = RECONNECT_BASE_MS; // reset back-off
+      this._notify();
+    };
+
+    this._ws.onmessage = (event) => {
+      this._handlePacket(event.data);
+    };
+
+    this._ws.onerror = (err) => {
+      console.warn('[ESP32SensorSource] WebSocket error:', err);
+    };
+
+    this._ws.onclose = () => {
+      console.warn('[ESP32SensorSource] Connection closed.');
+      this._status = 'disconnected';
+      this._ws = null;
+      this._notify();
+      if (!this._intentionallyStopped) {
+        this._scheduleReconnect();
+      }
+    };
+  }
+
+  _scheduleReconnect() {
+    this._clearReconnect();
+    console.info(`[ESP32SensorSource] Reconnecting in ${this._reconnectDelay}ms…`);
+    this._reconnectTimer = setTimeout(() => {
+      this._reconnectTimer = null;
+      if (!this._intentionallyStopped) this._connect();
+    }, this._reconnectDelay);
+    // Exponential back-off capped at max
+    this._reconnectDelay = Math.min(this._reconnectDelay * RECONNECT_MULTIPLIER, RECONNECT_MAX_MS);
+  }
+
+  _clearReconnect() {
+    if (this._reconnectTimer !== null) {
+      clearTimeout(this._reconnectTimer);
+      this._reconnectTimer = null;
     }
   }
 
-  _handleDisconnect() {
-    this._status     = 'disconnected';
-    this._latestData = createEmptySensorData('esp32');
+  // ── Private — Packet processing ─────────────────────────────────────────────
+
+  /**
+   * Parse the backend broadcast and update _latestData and _lastBackendPayload.
+   * @param {string} rawJson
+   */
+  _handlePacket(rawJson) {
+    let payload;
+    try {
+      payload = JSON.parse(rawJson);
+    } catch (err) {
+      console.error('[ESP32SensorSource] Failed to parse packet:', err);
+      return;
+    }
+
+    // Store the full backend payload for useBackendData()
+    this._lastBackendPayload = payload;
+    this._packetsReceived++;
+
+    // ── Map backend sensors → frontend SensorData shape ────────────────────
+    const s    = payload.sensors ?? {};
+    const imu  = s.imu   ?? {};
+    const bmp  = s.bmp280 ?? {};
+    const lm   = s.lm35   ?? {};
+    const gps  = s.gps    ?? {};
+
+    const mapped = {
+      timestamp: typeof payload.timestamp === 'number'
+        ? payload.timestamp * 1000   // backend sends unix seconds; frontend wants ms
+        : Date.now(),
+      source: 'esp32',
+
+      gps: {
+        available:  gps.fix === true,
+        latitude:   gps.latitude   ?? null,
+        longitude:  gps.longitude  ?? null,
+        altitude:   gps.altitude   ?? null,   // not in current backend schema; safe fallback
+      },
+
+      imu: {
+        acceleration: { x: imu.ax ?? 0, y: imu.ay ?? 0, z: imu.az ?? 0 },
+        gyroscope:    { x: imu.gx ?? 0, y: imu.gy ?? 0, z: imu.gz ?? 0 },
+      },
+
+      environmental: {
+        pressure:          bmp.pressure    ?? null,
+        bmp280Temperature: bmp.temperature ?? null,
+        lm35Temperature:   lm.temperature  ?? null,
+      },
+
+      // ESP32 switches & IR are not in the backend schema yet — safe defaults
+      switches: { sw1: false, sw2: false, sw3: false, sw4: false },
+      ir:       { active: false },
+    };
+
+    this._latestData = normalizeSensorData(mapped, 'running');
     this._notify();
-    console.warn('[ESP32SensorSource] Connection lost.');
   }
 
   _notify() {
