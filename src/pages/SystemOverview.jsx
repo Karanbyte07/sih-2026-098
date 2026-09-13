@@ -182,24 +182,35 @@ function TrajectoryViz({ reference, simulated, progress, isRunning }) {
         alignItems: 'center',
         pointerEvents: 'none',
       }}>
+        {/* Current State X */}
         <div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>ALTITUDE</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>STATE X</div>
+          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, color: '#2DD4BF', fontWeight: 600 }}>
+            {((current.x - 6) * 120).toFixed(1)} <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>m</span>
+          </div>
+        </div>
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+        {/* Current State Y */}
+        <div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>STATE Y</div>
+          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, color: '#A78BFA', fontWeight: 600 }}>
+            0.0 <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>m</span>
+          </div>
+        </div>
+        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+        {/* Current State Z */}
+        <div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>STATE Z</div>
           <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, color: '#38BDF8', fontWeight: 600 }}>
-            {((72 - current.y) * 75).toFixed(0)} <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>m</span>
+            {((72 - current.y) * 75).toFixed(1)} <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>m</span>
           </div>
         </div>
         <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
+        {/* Simulation Time */}
         <div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>DOWNRANGE</div>
-          <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, color: 'var(--text-primary)', fontWeight: 600 }}>
-            {((current.x - 6) * 120 / 1000).toFixed(2)} <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>km</span>
-          </div>
-        </div>
-        <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.08)' }} />
-        <div>
-          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>MACH</div>
+          <div style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 600, letterSpacing: '0.05em' }}>SIM TIME</div>
           <div style={{ fontFamily: 'JetBrains Mono', fontSize: 13, color: '#10B981', fontWeight: 600 }}>
-            {(0.45 + (1 - current.y / 72) * 1.45).toFixed(2)}
+            T+{(progress * 12).toFixed(2)}<span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>s</span>
           </div>
         </div>
       </div>
@@ -432,7 +443,7 @@ export default function SystemOverview({ setActivePage }) {
               </span>
             </div>
             <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-              Digital Twin Physics · Multi-Sensor Telemetry Bus · EKF State Estimation · Closed-Loop GNC
+              Digital Twin Physics · Multi-Sensor Telemetry · State Estimation · Guidance & Control
             </p>
           </div>
         </div>
@@ -509,7 +520,7 @@ export default function SystemOverview({ setActivePage }) {
       }}>
         {[
           {
-            label: 'FLIGHT REGIME / PHASE',
+            label: 'SIMULATION PHASE',
             value: progress < 0.35 ? 'Boost Phase' : progress < 0.7 ? 'Apogee Coast' : 'Terminal Descent',
             sub: `Mission Elapsed: T+${(progress * 12).toFixed(1)}s`,
             badge: 'ACTIVE',
@@ -523,16 +534,16 @@ export default function SystemOverview({ setActivePage }) {
             accent: errors.tracking < 5 ? '#10B981' : '#F59E0B',
           },
           {
-            label: 'EKF ESTIMATION CONFIDENCE',
+            label: 'ESTIMATION QUALITY',
             value: `${fmt(confidence)}%`,
-            sub: 'Uncertainty: < 1.6% (Bounded)',
+            sub: `Uncertainty: < 1.6%`,
             badge: 'CONVERGED',
             accent: confidence > 90 ? '#10B981' : '#F59E0B',
           },
           {
-            label: 'SAFETY INTERLOCK',
+            label: 'SYSTEM SAFETY',
             value: 'SAFE / DISARMED',
-            sub: 'Hardware Interlock: ACTIVE',
+            sub: 'Hardware Interlock: Active',
             badge: 'SECURE',
             accent: '#10B981',
           },
@@ -603,10 +614,10 @@ export default function SystemOverview({ setActivePage }) {
                 </div>
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>
-                    Digital Twin 2D Trajectory Simulation
+                    Digital Twin
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                    Physics Dynamics Model vs Injected Telemetry Profile
+                    Physics simulation vs measured telemetry
                   </div>
                 </div>
               </div>
@@ -677,7 +688,7 @@ export default function SystemOverview({ setActivePage }) {
                 { label: 'Tracking Error', value: fmt(errors.tracking), unit: 'm', alert: errors.tracking > 5 },
                 { label: 'Cumulative RMSE', value: fmt(errors.rmse), unit: 'm', alert: errors.rmse > 4 },
                 { label: 'Estimation Residual', value: fmt(errors.estimation), unit: 'm' },
-                { label: 'Kalman Gain Convergence', value: fmt(confidence), unit: '%', good: confidence > 90 },
+                { label: 'Estimation Confidence', value: fmt(confidence), unit: '%', good: confidence > 90 },
               ].map(m => (
                 <div key={m.label} style={{ background: 'rgba(11, 20, 34, 0.9)', padding: '8px 12px' }}>
                   <div style={{ fontSize: 10, color: 'var(--text-muted)', marginBottom: 2, fontWeight: 500 }}>
@@ -704,10 +715,10 @@ export default function SystemOverview({ setActivePage }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div>
                 <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Live Sensor Bus
+                  Live Sensor Data
                 </div>
                 <div style={{ fontSize: 10.5, color: 'var(--text-muted)' }}>
-                  Hardware Telemetry Acquisition
+                  Real-time sensor readings
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -839,7 +850,7 @@ export default function SystemOverview({ setActivePage }) {
                   </svg>
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Guidance & Control (GNC)
+                  Guidance & Control
                 </span>
               </div>
               <button className="btn-ghost" onClick={() => nav('guidance')} style={{ fontSize: 11, padding: '2px 6px' }}>→</button>
@@ -871,9 +882,9 @@ export default function SystemOverview({ setActivePage }) {
             </div>
 
             <MetricRow label="Lateral Steering Demand" value={isRunning ? fmt(errors.tracking * 0.15, 2) : '0.00'} unit="m/s²" />
-            <MetricRow label="Pitch Correction Offset" value={isRunning ? '+0.42' : '0.00'} unit="deg" />
+            <MetricRow label="Pitch Correction" value={isRunning ? '+0.42' : '0.00'} unit="deg" />
             <MetricRow label="Control Loop Latency" value="12" unit="ms" />
-            <MetricRow label="Command Safety Ceiling" value="Bounded (3.0G)" accent="var(--green)" border={false} />
+            <MetricRow label="Safety Limit" value="3.0G" accent="var(--green)" border={false} />
           </div>
 
           {/* ── Card 3: Electronic Fuze Safety Architecture ──────── */}
@@ -890,7 +901,7 @@ export default function SystemOverview({ setActivePage }) {
                   </svg>
                 </div>
                 <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Electronic Fuze & Safety
+                  Electronic Fuze
                 </span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -913,21 +924,21 @@ export default function SystemOverview({ setActivePage }) {
               justifyContent: 'space-between',
             }}>
               <div>
-                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600 }}>ARMING STATE</div>
+                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600 }}>SAFETY STATE</div>
                 <div style={{ fontFamily: 'JetBrains Mono', fontSize: 14, fontWeight: 700, color: 'var(--green)' }}>
                   DISARMED / SAFE
                 </div>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600 }}>ENVIRONMENT</div>
-                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Non-Operational Sim</div>
+                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 600 }}>MODE</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Simulation</div>
               </div>
             </div>
 
-            <MetricRow label="Dual Physical Interlocks" value="ENGAGED" accent="var(--green)" />
-            <MetricRow label="Acceleration Gate Check" value="Pass (Sensor Safe)" accent="var(--green)" />
-            <MetricRow label="Hardware Watchdog Timer" value="Nominal (0ms Jitter)" accent="var(--green)" />
-            <MetricRow label="Environmental Qualification" value="STANAG Compliance" border={false} />
+            <MetricRow label="Physical Interlocks" value="ENGAGED" accent="var(--green)" />
+            <MetricRow label="Acceleration Gate" value="Pass" accent="var(--green)" />
+            <MetricRow label="Watchdog Timer" value="Nominal" accent="var(--green)" />
+            <MetricRow label="Safety Check" value="All Clear" accent="var(--green)" border={false} />
           </div>
 
         </div>
