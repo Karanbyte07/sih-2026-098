@@ -50,14 +50,20 @@ class SerialReader:
                     raw = self._serial.readline()
                     if not raw:
                         continue
+                    line = raw.decode("utf-8", errors="replace").strip()
+                    if not line:
+                        continue  # skip blank / empty lines silently
+                    if not line.startswith("{"):
+                        logger.debug("Skipping non-JSON serial line: %s", line[:80])
+                        continue  # skip human-readable text lines silently
                     try:
-                        packet = json.loads(raw.decode("utf-8", errors="replace").strip())
+                        packet = json.loads(line)
                         if isinstance(packet, dict):
                             self.on_packet(packet)
                         else:
                             logger.warning("Ignoring non-object serial JSON")
                     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-                        logger.warning("Ignoring invalid serial JSON: %s", exc)
+                        logger.debug("Ignoring invalid serial JSON: %s", exc)
             except (SerialException, OSError) as exc:
                 self.connected = False
                 logger.warning("ESP32 serial unavailable on %s: %s", self.port, exc)

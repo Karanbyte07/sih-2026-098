@@ -16,7 +16,7 @@
  * Usage:
  *   import { dataSourceManager } from './dataSourceManager.js';
  *
- *   dataSourceManager.setSource('simulation');
+ *   dataSourceManager.setSource('esp32');
  *   dataSourceManager.start();
  *   dataSourceManager.subscribe(data => console.log(data));
  *   dataSourceManager.stop();
@@ -36,14 +36,15 @@ class DataSourceManager {
     };
 
     /** @type {'simulation' | 'esp32'} */
-    this._activeName = 'simulation';
+    this._activeName = 'esp32';
 
     /** @type {Set<Function>} */
     this._listeners = new Set();
 
-    // Wire the initial (simulation) source to bubble up to our listeners
+    // Wire the initial hardware source to bubble up to our listeners.
     this._boundHandler = (data) => this._onData(data);
     this._activeSource.subscribe(this._boundHandler);
+    this._activeSource.start();
   }
 
   // ── Getters ─────────────────────────────────────────────────────────────────

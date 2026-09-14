@@ -119,11 +119,14 @@ async def lifespan(_: FastAPI):
         )
         serial_reader.start()
 
-    # Background auto-tick: stream synthetic demo data at ~5 Hz when no hardware
+    # Synthetic telemetry is opt-in. Hardware packets must remain the only
+    # live source unless a developer explicitly enables the demo mode.
     async def _auto_demo_tick():
         import math, random
         while True:
             await asyncio.sleep(0.2)
+            if not settings.demo_enabled:
+                continue
             # Only tick when no real hardware is streaming
             if serial_reader and serial_reader.connected:
                 continue
@@ -182,6 +185,7 @@ async def get_status() -> dict[str, Any]:
         "serial_port": settings.serial_port,
         "serial_connected": bool(serial_reader and serial_reader.connected),
         "auto_serial": settings.auto_serial,
+        "demo_enabled": settings.demo_enabled,
         "websocket_clients": len(manager.connections),
     }
 

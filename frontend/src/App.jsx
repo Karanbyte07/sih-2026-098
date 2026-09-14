@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { dataSourceManager } from './sensors/dataSourceManager.js';
 import TopNav from './components/TopNav';
 
 // Pages
@@ -22,7 +23,12 @@ function Placeholder({ page }) {
 
 export default function App() {
   const [activePage, setActivePage]   = useState('overview');
-  const [dataSource, setDataSource]   = useState('simulation');
+  const [dataSource, setDataSource]   = useState('hardware');
+
+  const handleDataSourceChange = (source) => {
+    setDataSource(source);
+    dataSourceManager.setSource(source === 'hardware' ? 'esp32' : 'simulation');
+  };
 
   const renderPage = () => {
     switch (activePage) {
@@ -44,7 +50,7 @@ export default function App() {
         activePage={activePage}
         setActivePage={setActivePage}
         dataSource={dataSource}
-        setDataSource={setDataSource}
+        setDataSource={handleDataSourceChange}
       />
       <main style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         {renderPage()}
